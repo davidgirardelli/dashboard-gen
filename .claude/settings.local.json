@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(python3 -c \"import matplotlib\")",
+      "Bash(open /Users/davidgirardelli/Documents/scripts/dash-gen/seno.png)",
+      "Bash(ls /private/tmp/claude-501/bundled-skills/2.1.168/ | head -20)",
+      "Read(//private/tmp/claude-501/bundled-skills/2.1.168/**)",
+      "Bash(find ~/.claude/skills -name \"SKILL.md\" 2>/dev/null | head -5)",
+      "Read(//Users/davidgirardelli/.claude/**)",
+      "Bash(python3 -m json.tool)",
+      "Bash(mkdir -p /Users/davidgirardelli/Documents/scripts/dash-gen/.claude/skills/dash-builder)",
+      "Bash(npm create *)",
+      "Bash(npx create-vite@4 . --template react-ts)",
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest init --yes)",
+      "Bash(sudo chmod -R u+w ~/.npm/_cacache)",
+      "Bash(rm -rf ~/.npm/_cacache/content-v2/sha512/ff/0e 2>&1 && npx shadcn@latest init --yes 2>&1)",
+      "Bash(npm_config_cache=/tmp/npm-cache npx shadcn@latest init --yes)",
+      "Bash(npm_config_cache=/tmp/npm-cache npx shadcn@latest init)",
+      "Bash(npm_config_cache=/tmp/npm-cache npm install -D tailwindcss@3 postcss autoprefixer)",
+      "Bash(npm_config_cache=/tmp/npm-cache npm install class-variance-authority clsx tailwind-merge lucide-react recharts @radix-ui/react-slot)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npm_config_cache=/tmp/npm-cache npm install -D @types/node)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(open http://localhost:5173)",
+      "Bash(npm_config_cache=/tmp/npm-cache npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities)",
+      "Bash(curl -s \"https://api-market-data-b3.vercel.app/curve/pre?date=2026-05-07\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(type\\(d\\).__name__, len\\(d\\) if isinstance\\(d,list\\) else ''\\); print\\(json.dumps\\(d[:3] if isinstance\\(d,list\\) else d, indent=2\\)\\)\")",
+      "Bash(npm_config_cache=/tmp/npm-cache npm run build)"
+    ],
+    "additionalDirectories": [
+      "/Users/davidgirardelli/Documents/scripts/dash-gen/.claude/skills",
+      "/Users/davidgirardelli/.npm/_cacache/content-v2/sha512/ff"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    /* Dark by default — palette: #0D1F22 / #143135 / #A2D133 / #C2CECB / #E26D13 */
+    --background:         189 45% 9%;
+    --foreground:         0 0% 100%;
+
+    --card:               187 45% 14%;
+    --card-foreground:    0 0% 100%;
+
+    --popover:            187 45% 14%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary:            78 63% 51%;
+    --primary-foreground: 189 45% 9%;
+
+    --secondary:          187 40% 19%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted:              187 40% 19%;
+    --muted-foreground:   165 11% 78%;
+
+    --accent:             187 40% 22%;
+    --accent-foreground:  0 0% 100%;
+
+    --destructive:        26 84% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:             187 35% 22%;
+    --input:              187 35% 22%;
+    --ring:               78 63% 51%;
+
+    --radius: 0.5rem;
+
+    /* Chart palette */
+    --chart-1: 78 63% 51%;    /* #A2D133 lime  */
+    --chart-2: 26 84% 48%;    /* #E26D13 orange */
+    --chart-3: 165 11% 78%;   /* #C2CECB gray  */
+    --chart-4: 0 0% 100%;     /* #FFFFFF white */
+    --chart-5: 187 45% 35%;   /* teal mid-tone */
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; font-family: Inter, system-ui, sans-serif; }
+}
