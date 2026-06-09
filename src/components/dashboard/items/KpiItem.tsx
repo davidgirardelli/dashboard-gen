@@ -46,12 +46,17 @@ function ewmaVol(values: number[], lambda: number): number {
   return Math.sqrt(v)
 }
 
+function safeLambda(v: number | undefined): number {
+  return (v != null && isFinite(v) && v > 0 && v < 1) ? v : 0.94
+}
+
 function compute(data: Row[], key: string, agg: MetricAgg, lambda = 0.94): number {
-  const vals = data.map(d => d[key]).filter(v => !isNaN(v))
+  // isFinite also rejects NaN, Infinity, and undefined-coerced-to-number
+  const vals = data.map(d => d[key]).filter(v => isFinite(v))
   if (!vals.length) return 0
   switch (agg) {
-    case 'max':   return Math.max(...vals)
-    case 'min':   return Math.min(...vals)
+    case 'max':   { let m = vals[0]; for (const v of vals) if (v > m) m = v; return m }
+    case 'min':   { let m = vals[0]; for (const v of vals) if (v < m) m = v; return m }
     case 'avg':   return vals.reduce((a, b) => a + b, 0) / vals.length
     case 'sum':   return vals.reduce((a, b) => a + b, 0)
     case 'count': return vals.length
@@ -65,12 +70,14 @@ function compute(data: Row[], key: string, agg: MetricAgg, lambda = 0.94): numbe
     case 'q50': return quantile([...vals].sort((a, b) => a - b), 0.50)
     case 'q95': return quantile([...vals].sort((a, b) => a - b), 0.95)
     case 'q99': return quantile([...vals].sort((a, b) => a - b), 0.99)
-    case 'ewma': return ewmaVol(vals, lambda)
+    case 'ewma': return ewmaVol(vals, safeLambda(lambda))
+    default:     return 0
   }
 }
 
 function fmtAuto(value: number, agg: MetricAgg): string {
   if (agg === 'count') return value.toString()
+  if (!isFinite(value)) return '—'
   if (value === 0) return '0'
   const abs = Math.abs(value)
   if (abs < 0.0001) return value.toExponential(3)
@@ -206,7 +213,7 @@ export function KpiItemView({ item, sources, sourcesData, onUpdate, containerHei
                   <input
                     type="number"
                     value={m.ewmaLambda ?? 0.94}
-                    onChange={e => updateMetric(i, { ewmaLambda: parseFloat(e.target.value) })}
+                    onChange={e => updateMetric(i, { ewmaLambda: safeLambda(parseFloat(e.target.value)) })}
                     min={0.01} max={0.99} step={0.01}
                     className="h-8 w-16 rounded-md border border-border bg-card text-foreground text-xs px-2 focus:outline-none focus:ring-1 focus:ring-primary"
                     style={{ colorScheme: 'dark' }}
@@ -277,7 +284,8 @@ export function KpiItemView({ item, sources, sourcesData, onUpdate, containerHei
         >
           {metrics.map((m, i) => {
             const key   = m.metricKey
-            const value = key ? compute(data, key, m.aggregation, m.ewmaLambda ?? 0.94) : null
+            const raw   = key ? compute(data, key, m.aggregation, safeLambda(m.ewmaLambda)) : null
+            const value = (raw !== null && isFinite(raw)) ? raw : null
             const lbl   = m.label || key || '—'
             const aggLbl = m.aggregation === 'ewma'
               ? `EWMA λ=${m.ewmaLambda ?? 0.94}`

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { DynamicChart } from '@/components/charts/DynamicChart'
 import { ChartControls, type ChartType } from '@/components/dashboard/ChartControls'
@@ -32,6 +32,11 @@ export function ChartItemView({ item, sources, sourcesData, onUpdate, containerH
     if (!filters.length || !sd.allData.length) return { data: sd.data, headers: sd.headers }
     return applyFilters(sd.allData, sd.headers, filters)
   }, [sd, item.filters])
+
+  // Auto-open controls when data arrives but axes aren't configured yet
+  useEffect(() => {
+    if (data.length > 0 && (!item.xKey || !item.yKey)) setOpen(true)
+  }, [data.length, item.xKey, item.yKey])
 
   const chartHeight = Math.max(
     MIN_CHART_H,

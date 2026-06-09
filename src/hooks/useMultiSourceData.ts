@@ -53,7 +53,7 @@ function rowsToData(rows: ObjArray): { headers: string[]; data: Record<string, n
   return { headers, data: rows.map(r => Object.fromEntries(headers.map(h => [h, Number(r[h])]))) }
 }
 
-async function loadSource(src: DataSource, signal: AbortSignal): Promise<SourceData> {
+async function loadSource(src: DataSource, signal: AbortSignal): Promise<SourceData | null> {
   try {
     if (src.type === 'csv') {
       if (!src.csvFile) return EMPTY
@@ -97,7 +97,7 @@ async function loadSource(src: DataSource, signal: AbortSignal): Promise<SourceD
       return { ...parsed, allData: rows, allColumns, loading: false, error: null, resolvedPath }
     }
   } catch (err) {
-    if ((err as Error).name === 'AbortError') return LOADING
+    if ((err as Error).name === 'AbortError') return null   // caller checks signal.aborted
     return { ...EMPTY, error: String(err) }
   }
 }
@@ -124,6 +124,7 @@ export function useMultiSourceData(sources: DataSource[]): State {
     })
 
     const controllers: AbortController[] = []
+    const inflight: string[] = []   // source IDs that got a new fetch this run
 
     for (const src of sources) {
       const key = cacheKey(src)
@@ -139,16 +140,22 @@ export function useMultiSourceData(sources: DataSource[]): State {
 
       const ctrl = new AbortController()
       controllers.push(ctrl)
+      inflight.push(src.id)
       setState(prev => ({ ...prev, [src.id]: LOADING }))
 
       const capturedId = src.id
       loadSource(src, ctrl.signal).then(data => {
-        if (ctrl.signal.aborted) return
+        if (ctrl.signal.aborted || data === null) return
         setState(prev => ({ ...prev, [capturedId]: data }))
       })
     }
 
-    return () => controllers.forEach(c => c.abort())
+    return () => {
+      controllers.forEach(c => c.abort())
+      // Reset cache keys for in-flight sources so the next effect run will
+      // restart them instead of skipping (which would leave state stuck at LOADING).
+      inflight.forEach(id => keysRef.current.delete(id))
+    }
   }, [sources])
 
   return state

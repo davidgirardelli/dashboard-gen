@@ -30,9 +30,11 @@ export function ChartControls({ chartType, onChartType, headers, xKey, onXKey, y
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-secondary/30 p-3">
       <NativeSelect label="Eixo X" value={xKey} onChange={e => onXKey(e.target.value)}>
+        <option value="">— selecione —</option>
         {headers.map(h => <option key={h} value={h}>{h}</option>)}
       </NativeSelect>
       <NativeSelect label="Eixo Y" value={yKey} onChange={e => onYKey(e.target.value)}>
+        <option value="">— selecione —</option>
         {headers.map(h => <option key={h} value={h}>{h}</option>)}
       </NativeSelect>
 
