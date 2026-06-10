@@ -1,10 +1,22 @@
 export interface DataSource {
   id: string
   name: string
-  type: 'csv' | 'api'
+  type: 'csv' | 'upload' | 'api' | 'mongo'
+  // csv / upload
   csvFile: string
+  csvContent?: string
+  csvFileName?: string
+  // api
   apiUrl: string
   apiPath: string
+  // mongo
+  mongoUri?: string       // host or full URI without credentials
+  mongoUser?: string
+  mongoPassword?: string
+  mongoDb?: string
+  mongoCollection?: string
+  mongoFilter?: string    // JSON string, e.g. '{"status":"active"}'
+  mongoLimit?: number
 }
 
 export interface SourceData {

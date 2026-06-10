@@ -44,6 +44,36 @@ function autoDetect(json: unknown): { path: string; rows: ObjArray } | null {
   return null
 }
 
+/**
+ * Detects the "parallel arrays" pattern used by curve documents:
+ *   { du: [1,4,...], dc: [1,6,...], rate: [0.144,...], ref_date: "..." }
+ * and converts each document into N scalar rows — one per array index.
+ * Scalar fields (strings, numbers) are copied to every expanded row.
+ * If the pattern is not present, returns the original rows unchanged.
+ */
+function unzipParallelArrays(rows: ObjArray): ObjArray {
+  const first = rows[0]
+  const arrayFields = Object.keys(first).filter(k => Array.isArray(first[k]))
+  if (arrayFields.length < 2) return rows
+
+  const len = (first[arrayFields[0]] as unknown[]).length
+  const allSameLen = arrayFields.every(k => (first[k] as unknown[]).length === len)
+  if (!allSameLen || len === 0) return rows
+
+  const scalarFields = Object.keys(first).filter(k => !Array.isArray(first[k]) && k !== '_id')
+
+  const expanded: ObjArray = []
+  for (const doc of rows) {
+    for (let i = 0; i < (doc[arrayFields[0]] as unknown[]).length; i++) {
+      const row: Record<string, unknown> = {}
+      for (const f of scalarFields) row[f] = doc[f]
+      for (const f of arrayFields)  row[f] = (doc[f] as unknown[])[i]
+      expanded.push(row)
+    }
+  }
+  return expanded
+}
+
 function rowsToData(rows: ObjArray): { headers: string[]; data: Record<string, number>[] } | null {
   const headers = Object.keys(rows[0]).filter(k => {
     const v = rows[0][k]
@@ -55,6 +85,51 @@ function rowsToData(rows: ObjArray): { headers: string[]; data: Record<string, n
 
 async function loadSource(src: DataSource, signal: AbortSignal): Promise<SourceData | null> {
   try {
+    if (src.type === 'upload') {
+      if (!src.csvContent) return EMPTY
+      const rows = parseCsv(src.csvContent)
+      if (!rows.length) return { ...EMPTY, error: 'CSV vazio' }
+      const allColumns = Object.keys(rows[0])
+      const headers    = allColumns.filter(k => rows[0][k] !== '' && !isNaN(parseFloat(rows[0][k])))
+      const allData    = rows as unknown as Record<string, unknown>[]
+      return { data: toNumber(rows, ...headers), headers, allData, allColumns, loading: false, error: null, resolvedPath: src.csvFileName ?? 'upload' }
+    }
+
+    if (src.type === 'mongo') {
+      if (!src.mongoUri || !src.mongoDb || !src.mongoCollection) return EMPTY
+      let filter: Record<string, unknown> = {}
+      if (src.mongoFilter?.trim()) {
+        try { filter = JSON.parse(src.mongoFilter) } catch {
+          return { ...EMPTY, error: 'Filtro MongoDB inválido — JSON esperado' }
+        }
+      }
+      const res = await fetch('/api/mongo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uri: buildMongoUri(src),
+          db: src.mongoDb,
+          collection: src.mongoCollection,
+          filter,
+          limit: src.mongoLimit ?? 1000,
+        }),
+        signal,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as Record<string, unknown>
+        throw new Error((body.error as string) ?? `HTTP ${res.status}`)
+      }
+      const raw: unknown = await res.json()
+      if (!isObjArray(raw))
+        return { ...EMPTY, error: 'Proxy retornou formato inesperado' }
+      const rows = unzipParallelArrays(raw)
+      const parsed = rowsToData(rows)
+      if (!parsed) return { ...EMPTY, error: 'Nenhuma coluna numérica encontrada' }
+      const allColumns = Object.keys(rows[0])
+      return { ...parsed, allData: rows, allColumns, loading: false, error: null,
+        resolvedPath: `${src.mongoDb}.${src.mongoCollection}` }
+    }
+
     if (src.type === 'csv') {
       if (!src.csvFile) return EMPTY
       const res = await fetch(`/${src.csvFile}`, { signal })
@@ -102,8 +177,25 @@ async function loadSource(src: DataSource, signal: AbortSignal): Promise<SourceD
   }
 }
 
+/** Injects user/password into a MongoDB URI that has no embedded credentials. */
+function buildMongoUri(src: DataSource): string {
+  let uri = src.mongoUri ?? ''
+  if (!uri.startsWith('mongodb')) uri = `mongodb://${uri}`
+  const user = src.mongoUser ? encodeURIComponent(src.mongoUser) : ''
+  const pass = src.mongoPassword ? encodeURIComponent(src.mongoPassword) : ''
+  if (user || pass) {
+    const creds = pass ? `${user}:${pass}@` : `${user}@`
+    uri = uri.replace(/^(mongodb(?:\+srv)?:\/\/)/, `$1${creds}`)
+  }
+  return uri
+}
+
 /** Stable key based only on data-affecting fields — name changes don't trigger refetch */
 function cacheKey(src: DataSource) {
+  if (src.type === 'upload')
+    return `upload:${src.csvFileName ?? ''}:${src.csvContent?.length ?? 0}`
+  if (src.type === 'mongo')
+    return `mongo:${src.mongoUri}:${src.mongoUser ?? ''}:${src.mongoPassword ?? ''}:${src.mongoDb}:${src.mongoCollection}:${src.mongoFilter ?? ''}:${src.mongoLimit ?? 1000}`
   return `${src.type}:${src.csvFile}:${src.apiUrl}:${src.apiPath}`
 }
 
@@ -132,7 +224,10 @@ export function useMultiSourceData(sources: DataSource[]): State {
 
       keysRef.current.set(src.id, key)
 
-      const hasConfig = src.type === 'csv' ? !!src.csvFile : !!src.apiUrl
+      const hasConfig = src.type === 'csv'    ? !!src.csvFile
+        : src.type === 'upload' ? !!src.csvContent
+        : src.type === 'mongo'  ? !!(src.mongoUri && src.mongoDb && src.mongoCollection)
+        : !!src.apiUrl
       if (!hasConfig) {
         setState(prev => ({ ...prev, [src.id]: EMPTY }))
         continue
